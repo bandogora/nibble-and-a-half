@@ -4,14 +4,14 @@
 // b64 maps 0=>A, 1=>B..63=>/ etc
 //                      ----------1---------2---------3---------4---------5---------6---
 //                      0123456789012345678901234567890123456789012345678901234567890123
-const static char* b64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" ;
+static const char* b64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 // unb64 maps A=>0, B=>1.. and all others not present in base64 alphabet to 0.
 // You can clearly see here why base64 encoding is a really bloated representation
 // of the original data: look how many entries are unused. Each ascii character
 // can index any value between 0-255 in an array, but we're only using 64 of
 // the available slots for meaningful values, leaving 192/256 values unused.
-const static unsigned char unb64[]={
+static const unsigned char unb64[]={
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //10
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //20
   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, //30
@@ -48,40 +48,13 @@ const static unsigned char unb64[]={
 // this function, if you want your C string to be fully encoded,
 // you have to pass strlen(str)+1 to as binaryData as I have in the
 // examples.
-char* base64( const void* binaryData, int len, int *flen )
+int base64(const void* binaryData, int len, char *base64String)
 {
-  // printf("Base64 encoding %d bytes of binary data\n", len);
+  int pad = BASE64PAD(len);
+  int flen = BASE64LEN(len);
 
   // I look at your data like the stream of unsigned bytes that it is
-  const unsigned char* bin = (const unsigned char*)binaryData ;
-
-  int lenMod3 = len % 3;
-
-  // PAD. Base64 is all about breaking the input into SEXTETS, or 6-bit inputs.
-  // If you have 1 byte of input, that's 8 bits, not 6. So it won't fit.
-  // We need the input to be a multiple of 6. So 8 bits would be padded
-  // by 2 bytes to make the total input size 24 bits, which is divisible by 6.
-  // A 2 byte input is 16 bits, which is not divisible by 6. So we pad it
-  // by 1 byte to make it 24 bits, which is now divisible by 6.
-
-  // We use modulus 3 bytes above because that's 24 bits, and 24 bits is
-  // the lowest number that is both divisible by 6 and 8. We need the final
-  // output data is to both be divisible by 6 and 8.
-  int pad = ((lenMod3&1)<<1) + ((lenMod3&2)>>1) ; // 2 gives 1 and 1 gives 2, but 0 gives 0.
-
-  *flen = 4*(len + pad)/3 ; // (len+pad) IS divisible by 3
-  // So, final length IS a multiple of 4 for a valid base64 string.
-  // printf("%d %% 3 = %d, %d bytes pad, +1 byte NULL, flen=%d\n", len, lenMod3, pad, *flen);
-
-  // Allocate enough space for the base64 string result.
-  char* base64String = (char*)malloc( *flen + 1 ) ; // and one for the null,
-  // which is NOT counted in flen.
-  if( !base64String )
-  {
-    puts( "ERROR: base64 could not allocate enough memory." ) ;
-    puts( "I must stop because I could not get enough" ) ;
-    return 0;
-  }
+  const unsigned char* bin = (const unsigned char*)binaryData;
 
   // EXTRACTING SEXTETS FROM THE OCTETS.
   //     byte0       byte1       byte2
@@ -157,18 +130,18 @@ char* base64( const void* binaryData, int len, int *flen )
 
   int i = 0, byteNo; // result counter, and which byte we're on of the original source data.
   // I still need these variables after the loop
-  for( byteNo = 0 ; byteNo <= len-3 ; // This loop is NOT entered for if there
+  for(byteNo = 0; byteNo <= len-3; // This loop is NOT entered for if there
     // are trailing bytes that are not a multiple of 3 bytes,
     // since we skip in 3's.
     // If there WAS padding, skip the last 3 octets and process below.
     // 0=>no, 1=>no, 2=>no, 3=>ONCE,4=>ONCE,5=>ONCE, 6=>2x..
-    byteNo+=3 ) // jump in 3's
+    byteNo+=3) // jump in 3's
   {
     // Use unsigned char so shifts left will always bring in 0's
     unsigned char BYTE0 = bin[byteNo];
     unsigned char BYTE1 = bin[byteNo+1];
     unsigned char BYTE2 = bin[byteNo+2];
-    //printf( "BYTE0=%d BYTE1=%d BYTE2=%d\n", BYTE0, BYTE1, BYTE2 ) ;
+    //printf("BYTE0=%d BYTE1=%d BYTE2=%d\n", BYTE0, BYTE1, BYTE2);
 
     // To form the base64String, we make lookups with the base64 numeric
     // values into the base64 "alphabet" that is present in the b64 array.
@@ -180,11 +153,11 @@ char* base64( const void* binaryData, int len, int *flen )
 
   // The last 3 octets must be converted carefully as if len%3==1 or len%3==2 we must
   // "pretend" there are additional bits at the end.
-  if( pad==1 )
+  if(pad==1)
   {
     unsigned char BYTE0 = bin[byteNo];
     unsigned char BYTE1 = bin[byteNo+1];
-    //printf( "BYTE0=%d BYTE1=%d\n", BYTE0, BYTE1 ) ;
+    //printf("BYTE0=%d BYTE1=%d\n", BYTE0, BYTE1);
     // When len%3==2 (2,5,8,11) (missing 1 byte).
     //   - 3 sextets (C is 0 padded)
     //    bin[0]       bin[1]      bin[2]
@@ -192,22 +165,22 @@ char* base64( const void* binaryData, int len, int *flen )
     // | 0000 0011   1111 1111   ~~~~ ~~~~ |
     // +-AAAA AABB   BBBB CCCC   XXXX XXXX
     // Here all the ~ are actually going to be considered __0__'s.
-    base64String[i++] = b64[ SEXTET_A(BYTE0) ] ;
-    base64String[i++] = b64[ SEXTET_B(BYTE0, BYTE1) ] ;
+    base64String[i++] = b64[ SEXTET_A(BYTE0) ];
+    base64String[i++] = b64[ SEXTET_B(BYTE0, BYTE1) ];
 
     // We can't use the SEXTET3 formula because we only have 2 bytes to work
     // with. The 3rd byte (BYTE2) is actually 0 here. You could call
     // SEXTET3(BYTE1, 0), but to save some ops we just write what will actually
     // be needed here only.
-    base64String[i++] = b64[ (0xf&BYTE1) << 2 ] ;
+    base64String[i++] = b64[ (0xf&BYTE1) << 2 ];
 
     // Last one is = to indicate there has been a padding of 1 byte.
     base64String[i++] = '=';
   }
-  else if( pad==2 ) //len%3==1 (1,4,7,10)
+  else if(pad==2) //len%3==1 (1,4,7,10)
   {
     unsigned char BYTE0 = bin[byteNo];
-    //printf( "BYTE0=%d\n", BYTE0 ) ;
+    //printf("BYTE0=%d\n", BYTE0);
     // We are missing 2 bytes. So
     //   - we will only extract 2 sextets when len%3==1
     //   - The 2nd sextet's 2 HI ORDER BITS, NOT LO-ORDER.
@@ -216,24 +189,24 @@ char* base64( const void* binaryData, int len, int *flen )
     // +-----------+-----------+-----------+
     // | 0000 0011   ~~~~ ~~~~   ~~~~ ~~~~ |
     // +-AAAA AABB   XXXX XXXX   XXXX XXXX
-    base64String[i++] = b64[ SEXTET_A(BYTE0) ] ;
-    base64String[i++] = b64[ (0x3&BYTE0) << 4 ] ; // "padded" by 0's, these 2 bits are still HI ORDER BITS.
+    base64String[i++] = b64[ SEXTET_A(BYTE0) ];
+    base64String[i++] = b64[ (0x3&BYTE0) << 4 ]; // "padded" by 0's, these 2 bits are still HI ORDER BITS.
     // Last 2 are ==, to indicate there's been a 2 byte-pad
     base64String[i++] = '=';
     base64String[i++] = '=';
   }
 
-  base64String[i] = 0; // NULL TERMINATOR! ;)
-  return base64String;
+  base64String[i] = 0; // NULL TERMINATOR!;)
+  return flen;
 }
 
-unsigned char* unbase64( const char* ascii, int len, int *flen )
+int unbase64(const char* ascii, int len, unsigned char *bin)
 {
 #ifdef SAFEBASE64
-  if( !base64integrity( ascii, len ) )  return 0 ; // NULL PTR if bad integrity.
+  if(!base64integrity(ascii, len))  return 0; // NULL PTR if bad integrity.
 #endif
 
-  const unsigned char *safeAsciiPtr = (const unsigned char*)ascii ; // internally I use
+  const unsigned char *safeAsciiPtr = (const unsigned char*)ascii; // internally I use
   // an unsigned char pointer, so that __the maximum value read out is 255,
   // and the value is never negative__.  This is a type of
   // "if statement" enforced by the type of the pointer.
@@ -242,33 +215,21 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
   // inside the bounds of the 256 element array).
 
   int pad = 0;
-  if( len > 1 ) {
+  if(len > 1) {
     // Count == on the end to determine how much it was padded.
-    if( safeAsciiPtr[ len-1 ]=='=' )  ++pad;
-    if( safeAsciiPtr[ len-2 ]=='=' )  ++pad;
+    if(safeAsciiPtr[ len-1 ]=='=')  ++pad;
+    if(safeAsciiPtr[ len-2 ]=='=')  ++pad;
   }
 
-  // You take the ascii string len and divide it by 4
-  // to get the number of 3 octet groups. You then *3 to
-  // get #octets total.
-  // If len<4, we makes sure you get a flen of 0, because that's not even
-  // a valid base64 string at all.
-  *flen = 3*(len/4) - pad;
-  if( *flen < 0 )  *flen = 0;
-  unsigned char *bin = (unsigned char*)malloc( *flen );
-  if( !bin )
-  {
-    puts( "ERROR: unbase64 could not allocate enough memory." ) ;
-    puts( "I must stop because I could not get enough" ) ;
-    return 0;
-  }
+  int flen = UNBASE64LEN(len) - pad;
+  if(flen < 0)  flen = 0;
 
   int cb = 0; // counter for bin
   int charNo; // counter for what base64 char we're currently decoding
 
   // NEVER do the last group of 4 characters if either of the
   // last 2 chars were pad.
-  for( charNo=0; charNo <= len - 4 - pad ; charNo+=4 )
+  for(charNo=0; charNo <= len - 4 - pad; charNo+=4)
   {
     // Get the numbers each character represents
     // Since ascii is ONE BYTE, the worst that can happen is
@@ -278,13 +239,13 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
     // is if you #define SAFEBASE64 (particularly because
     // there is a 3-4x performance hit, just for the integrity check.)
     int A=unb64[safeAsciiPtr[charNo]];
-    //printf( "[%4d] %c => %d\n", charNo, ascii[charNo], A ) ;
+    //printf("[%4d] %c => %d\n", charNo, ascii[charNo], A);
     int B=unb64[safeAsciiPtr[charNo+1]];
-    //printf( "[%4d] %c => %d\n", charNo+1, ascii[charNo+1], B ) ;
+    //printf("[%4d] %c => %d\n", charNo+1, ascii[charNo+1], B);
     int C=unb64[safeAsciiPtr[charNo+2]];
-    //printf( "[%4d] %c => %d\n", charNo+2, ascii[charNo+2], C ) ;
+    //printf("[%4d] %c => %d\n", charNo+2, ascii[charNo+2], C);
     int D=unb64[safeAsciiPtr[charNo+3]];
-    //printf( "[%4d] %c => %d\n", charNo+3, ascii[charNo+3], D ) ;
+    //printf("[%4d] %c => %d\n", charNo+3, ascii[charNo+3], D);
 
     // Just unmap each sextet to THE NUMBER it represents.
     // You then have to pack it in bin,
@@ -295,19 +256,19 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
     // | 0000 0011   0111 1011   1010 1101 |
     // +-AAAA AABB   BBBB CCCC   CCDD DDDD
     // or them
-    bin[cb++] = (A<<2) | (B>>4) ; // OR in last 2 bits of B
+    bin[cb++] = (A<<2) | (B>>4); // OR in last 2 bits of B
 
     // The 2nd byte is the bottom 4 bits of B for the upper nibble,
     // and the top 4 bits of C for the lower nibble.
-    bin[cb++] = (B<<4) | (C>>2) ;
-    bin[cb++] = (C<<6) | (D) ; // shove C up to top 2 bits, or with D
+    bin[cb++] = (B<<4) | (C>>2);
+    bin[cb++] = (C<<6) | (D); // shove C up to top 2 bits, or with D
   }
 
   // If the length of the string were not a multiple of 4, then the string
   // was damaged and some data was lost.
-  if( isMultipleOf(len, 4) )
+  if(isMultipleOf(len, 4))
   {
-    if( pad==1 )
+    if(pad==1)
     {
       // 1 padding character.
       //    bin[0]       bin[1]      bin[2]
@@ -320,10 +281,10 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
       int B=unb64[safeAsciiPtr[charNo+1]];
       int C=unb64[safeAsciiPtr[charNo+2]];
 
-      bin[cb++] = (A<<2) | (B>>4) ;
-      bin[cb++] = (B<<4) | (C>>2) ;
+      bin[cb++] = (A<<2) | (B>>4);
+      bin[cb++] = (B<<4) | (C>>2);
     }
-    else if( pad==2 )
+    else if(pad==2)
     {
       //    bin[0]       bin[1]      bin[2]
       // +-----------+-----------+-----------+
@@ -332,11 +293,11 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
       int A=unb64[safeAsciiPtr[charNo]];
       int B=unb64[safeAsciiPtr[charNo+1]];
 
-      bin[cb++] = (A<<2) | (B>>4) ;
+      bin[cb++] = (A<<2) | (B>>4);
     }
   }
 
-  return bin ;
+  return flen;
 }
 
 // There are some invalid unbase64 strings, even when they are comprised
@@ -344,7 +305,7 @@ unsigned char* unbase64( const char* ascii, int len, int *flen )
 // piece of data that says it is padded by 2 bytes at the end. Well, you
 // only need to pad by 2 bytes if the number of bits in the original data
 // was not evenly divisible by 6. 0%6==0, so something's clearly wrong here.
-int base64integrity( const char *ascii, int len )
+int base64integrity(const char *ascii, int len)
 {
   // The base64 string is somewhat inflated, since each ASCII character
   // represents only a 6-bit value (a sextet). That leaves 2 bits wasted per 8 bits used.
@@ -362,49 +323,49 @@ int base64integrity( const char *ascii, int len )
 
   // If the length is not a multiple of 4, it's invalid base64.
   // Here, the empty string will be valid base64 because it represents empty data.
-  if( len % 4 )  return 0;
+  if(len % 4)  return 0;
 
   // LOOKING FOR BAD CHARACTERS
   int i;
-  for( i = 0 ; i < len - 2 ; i++ )
+  for(i = 0; i < len - 2; i++)
   {
-    if( !isbase64ValidChr( ascii[i] ) )
+    if(!isbase64ValidChr(ascii[i]))
     {
-      printf( "ERROR in base64integrity at chr %d [%c]. String is NOT valid base64.\n", i, ascii[i] ) ;
-      return 0 ;
+      printf("ERROR in base64integrity at chr %d [%c]. String is NOT valid base64.\n", i, ascii[i]);
+      return 0;
     }
   }
 
   // Only last 2 can be '='
   // Check 2nd last:
-  if( ascii[i]=='=' )
+  if(ascii[i]=='=')
   {
     // If the 2nd last is = the last MUST be = too
-    if( ascii[i+1] != '=' )
+    if(ascii[i+1] != '=')
     {
-      printf( "ERROR in base64integrity at chr %d.\n"
+      printf("ERROR in base64integrity at chr %d.\n"
       "If the 2nd last chr is '=' then the last chr must be '=' too.\n "
-      "String is NOT valid base64.", i ) ;
-      return 0 ;
+      "String is NOT valid base64.", i);
+      return 0;
     }
   }
-  else if( !isbase64ValidChr( ascii[i] ) )  // not = or valid base64
+  else if(!isbase64ValidChr(ascii[i]))  // not = or valid base64
   {
     // 2nd last was invalid and not '='
-    printf( "ERROR in base64integrity at chr %d (2nd last chr). String is NOT valid base64.\n", i ) ;
-    return 0 ;
+    printf("ERROR in base64integrity at chr %d (2nd last chr). String is NOT valid base64.\n", i);
+    return 0;
   }
 
   // check last
 
-  i++ ;
-  if( ascii[i]!='=' && !isbase64ValidChr( ascii[i] ) )
+  i++;
+  if(ascii[i]!='=' && !isbase64ValidChr(ascii[i]))
   {
-    printf( "ERROR in base64integrity at chr %d (last chr). String is NOT valid base64.\n", i ) ;
-    return 0 ;
+    printf("ERROR in base64integrity at chr %d (last chr). String is NOT valid base64.\n", i);
+    return 0;
   }
 
   // Otherwise if get here, b64 string was valid.
 
-  return 1 ;
+  return 1;
 }

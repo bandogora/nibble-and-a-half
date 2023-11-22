@@ -11,18 +11,18 @@
 typedef struct _CTimer
 {
   #ifdef _WIN32
-  LARGE_INTEGER startTime ;
-  double fFreq ;
+  LARGE_INTEGER startTime;
+  double fFreq;
   #else
-  struct timeval startTime ;
+  struct timeval startTime;
   #endif
-} CTimer ;
+} CTimer;
 
-void CTimerReset( CTimer* ctimer );
+void CTimerReset(CTimer* ctimer);
 
-void CTimerInit( CTimer* ctimer );
+void CTimerInit(CTimer* ctimer);
 
 // Gets the most up to date time.
-double CTimerGetTime( CTimer* ctimer );
+double CTimerGetTime(CTimer* ctimer);
 
 #endif
