@@ -3,5 +3,12 @@ Language:        Cpp
 BasedOnStyle:  Google
 
 AlignAfterOpenBracket: BlockIndent
-ColumnLimit:  100
+ColumnLimit:  120
+SpacesInParens: Custom
+SpacesInParensOptions:
+  ExceptDoubleParentheses: true
+  InConditionalStatements: true
+  InCStyleCasts: false
+  InEmptyParentheses: false
+  Other: true
 ...

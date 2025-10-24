@@ -16,11 +16,11 @@
 #include "base64.h"  // THIS IS ALL YOU NEED to use base64 and unbase64.
 #include "testbase64.h"
 
-int main(int argc, char** argv) {
+int main( int argc, char** argv ) {
   printUnbase64();  // Generate the unbase64 conversion array
 
-  testBase64String("hi there aardvark!! @#$**&^)");
-  testBase64String("");  // sweet empty string test case
+  testBase64String( "hi there aardvark!! @#$**&^)" );
+  testBase64String( "" );  // sweet empty string test case
 
   testUnbase64WithBadAscii();
   testUnbase64WithBadLength();
